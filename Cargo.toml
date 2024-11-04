@@ -32,6 +32,9 @@ toml = "0.8.19"
 walkdir = "2.0.1"
 yansi = "1"
 zip = { version = "2.3.0", default-features = false, features = ["deflate"] }
+syntect = "5.2.0"
+mdcat = "2.1.1"
+pulldown-cmark-mdcat = "2.1.1"
 
 [target.'cfg(not(windows))'.dependencies]
 pager = "0.16"

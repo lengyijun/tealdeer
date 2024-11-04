@@ -3,6 +3,12 @@
 use std::io::{self, BufRead, Write};
 
 use anyhow::{Context, Result};
+use mdcat::create_resource_handler;
+use mdcat::output::Output;
+use pulldown_cmark_mdcat::TerminalProgram;
+use pulldown_cmark_mdcat::TerminalSize;
+use pulldown_cmark_mdcat::Theme;
+use syntect::parsing::SyntaxSet;
 use yansi::Paint;
 
 use crate::{
@@ -39,11 +45,6 @@ pub fn print_page(
     // Create reader from file(s)
     let reader = lookup_result.reader()?;
 
-    // Configure pager if applicable
-    if use_pager || config.display.use_pager {
-        configure_pager(enable_styles);
-    }
-
     // Lock stdout only once, this improves performance considerably
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -54,6 +55,20 @@ pub fn print_page(
             let line = line.context("Error while reading from a page")?;
             writeln!(handle, "{line}").context("Could not write to stdout")?;
         }
+
+        // We're done outputting data, flush stdout now!
+        handle.flush().context("Could not flush stdout")
+    } else {
+        print_page_mdcat(lookup_result, enable_styles, use_pager, config)
+    }
+
+    /*
+    // Configure pager if applicable
+    if use_pager || config.display.use_pager {
+        configure_pager(enable_styles);
+    }
+
+    if enable_markdown {
     } else {
         // Closure that processes a page snippet and writes it to stdout
         let mut process_snippet = |snip: PageSnippet<'_>| {
@@ -72,10 +87,41 @@ pub fn print_page(
         )
         .context("Could not write to stdout")?;
     }
+     */
+}
 
-    // We're done outputting data, flush stdout now!
-    handle.flush().context("Could not flush stdout")?;
+fn print_page_mdcat(
+    lookup_result: &PageLookupResult,
+    enable_styles: bool,
+    use_pager: bool,
+    config: &Config,
+) -> Result<()> {
+    let terminal = TerminalProgram::detect();
+    let terminal_size = TerminalSize::detect().unwrap_or_default();
+    let settings = pulldown_cmark_mdcat::Settings {
+        terminal_capabilities: terminal.capabilities(),
+        terminal_size,
+        syntax_set: &SyntaxSet::load_defaults_newlines(),
+        theme: Theme::default(),
+    };
+    let resource_handler = create_resource_handler(mdcat::args::ResourceAccess::LocalOnly).unwrap();
+    let mut output = Output::new(false).unwrap();
+    mdcat::process_file(
+        lookup_result.page_path.to_str().unwrap(),
+        &settings,
+        &resource_handler,
+        &mut output,
+    )?;
 
+    if let Some(patch_path) = &lookup_result.patch_path {
+        println!();
+        mdcat::process_file(
+            patch_path.to_str().unwrap(),
+            &settings,
+            &resource_handler,
+            &mut output,
+        )?;
+    }
     Ok(())
 }
 
