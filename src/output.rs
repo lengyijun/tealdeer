@@ -3,6 +3,12 @@
 use std::io::{self, BufRead, Write};
 
 use anyhow::{Context, Result};
+use mdcat::create_resource_handler;
+use mdcat::output::Output;
+use pulldown_cmark_mdcat::TerminalProgram;
+use pulldown_cmark_mdcat::TerminalSize;
+use pulldown_cmark_mdcat::Theme;
+use syntect::parsing::SyntaxSet;
 use yansi::Paint;
 
 use crate::{
@@ -36,6 +42,35 @@ pub fn print_page(
     use_pager: bool,
     config: &Config,
 ) -> Result<()> {
+    let terminal = TerminalProgram::detect();
+    let terminal_size = TerminalSize::detect().unwrap_or_default();
+    let settings = pulldown_cmark_mdcat::Settings {
+        terminal_capabilities: terminal.capabilities(),
+        terminal_size,
+        syntax_set: &SyntaxSet::load_defaults_newlines(),
+        theme: Theme::default(),
+    };
+    let resource_handler = create_resource_handler(mdcat::args::ResourceAccess::LocalOnly).unwrap();
+    let mut output = Output::new(false).unwrap();
+    mdcat::process_file(
+        lookup_result.page_path.to_str().unwrap(),
+        &settings,
+        &resource_handler,
+        &mut output,
+    )?;
+
+    if let Some(patch_path) = &lookup_result.patch_path {
+        println!();
+        mdcat::process_file(
+            patch_path.to_str().unwrap(),
+            &settings,
+            &resource_handler,
+            &mut output,
+        )?;
+    }
+    Ok(())
+
+    /*
     // Create reader from file(s)
     let reader = lookup_result.reader()?;
 
@@ -77,6 +112,7 @@ pub fn print_page(
     handle.flush().context("Could not flush stdout")?;
 
     Ok(())
+     */
 }
 
 fn print_snippet(
