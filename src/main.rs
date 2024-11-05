@@ -391,6 +391,21 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
         };
 
         print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
+        let custom_pages_dir = config
+            .directories
+            .custom_pages_dir
+            .as_ref()
+            .map(PathWithSource::path);
+        let v = cache
+            .list_pages(custom_pages_dir, &platforms)
+            .into_iter()
+            .filter(|page| page.starts_with(&format!("{command}-")))
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !v.is_empty() {
+            println!("\nsee also");
+            println!("{v}");
+        }
     }
 
     Ok(ExitCode::SUCCESS)
