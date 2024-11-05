@@ -338,7 +338,13 @@ impl Cache {
                 .path()
                 .file_name()
                 .and_then(OsStr::to_str)
-                .and_then(|s| s.strip_suffix(".page.md"))
+                .and_then(|s| {
+                    if s.ends_with(".page.md") {
+                        s.strip_suffix(".page.md")
+                    } else {
+                        s.strip_suffix(".patch.md")
+                    }
+                })
                 .map(str::to_string)
         };
 
@@ -365,7 +371,9 @@ impl Cache {
                         .path()
                         .file_name()
                         .and_then(OsStr::to_str)
-                        .map_or(false, |file_name| file_name.ends_with(".page.md"))
+                        .map_or(false, |file_name| {
+                            file_name.ends_with(".page.md") || file_name.ends_with(".patch.md")
+                        })
             };
 
             let custom_pages = WalkDir::new(custom_pages_dir)
