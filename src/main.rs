@@ -409,6 +409,22 @@ fn main() {
                 print_error(enable_styles, e);
                 process::exit(1);
             }
+
+            let custom_pages_dir = config
+                .directories
+                .custom_pages_dir
+                .as_ref()
+                .map(PathWithSource::path);
+            let v = cache
+                .list_pages(custom_pages_dir, platforms)
+                .into_iter()
+                .filter(|page| page.starts_with(&format!("{command}-")))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if !v.is_empty() {
+                println!("\nsee also");
+                println!("{v}");
+            }
             process::exit(0);
         } else {
             if !args.quiet {
