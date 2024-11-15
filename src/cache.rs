@@ -293,8 +293,20 @@ impl Cache {
         }
 
         // Did not find platform specific results, fall back to "common"
-        Self::find_page_for_platform(&page_filename, &pages_dir, "common", &lang_dirs)
-            .map(|page| PageLookupResult::with_page(page).with_optional_patch(patch_path))
+        if let Some(res) =
+            Self::find_page_for_platform(&page_filename, &pages_dir, "common", &lang_dirs)
+                .map(|page| PageLookupResult::with_page(page).with_optional_patch(patch_path))
+        {
+            return Some(res);
+        }
+
+        if let Some(config_dir) = custom_pages_dir {
+            let custom_patch = config_dir.join(&patch_filename);
+            if custom_patch.exists() && custom_patch.is_file() {
+                return Some(PageLookupResult::with_page(custom_patch));
+            }
+        }
+        None
     }
 
     /// Return the available pages.
