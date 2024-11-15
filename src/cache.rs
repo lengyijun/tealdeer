@@ -319,6 +319,12 @@ impl Cache {
             }
         }
 
+        if let Some(config_dir) = custom_pages_dir {
+            let custom_patch = config_dir.join(&patch_filename);
+            if custom_patch.exists() && custom_patch.is_file() {
+                return Some(PageLookupResult::with_page(custom_patch));
+            }
+        }
         None
     }
 
