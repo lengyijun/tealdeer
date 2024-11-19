@@ -40,6 +40,9 @@ pub(crate) struct Cli {
     #[arg(long, requires = "command")]
     pub edit_page: bool,
 
+    #[arg(short = 'e', requires = "command", conflicts_with_all(["edit_page", "edit_patch"]))]
+    pub edit: bool,
+
     /// Render a specific markdown file
     #[arg(
         short = 'f',

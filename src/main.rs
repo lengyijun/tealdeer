@@ -325,6 +325,50 @@ fn main() {
         return;
     }
 
+    if args.edit {
+        let Some(custom_pages_dir) = custom_pages_dir else {
+            print_error(enable_styles, &anyhow!("Fail to get custom page dir"));
+            process::exit(1);
+        };
+        let _ = create_dir_all(custom_pages_dir);
+
+        let Ok(editor) = env::var("EDITOR") else {
+            print_error(
+                enable_styles,
+                &anyhow!("`EDITOR` not set. Please set `EDITOR` by `export EDITOR=vim`."),
+            );
+            process::exit(1);
+        };
+
+        let path = {
+            let custom_page_path = custom_pages_dir.join(format!("{command}.page.md"));
+            if custom_page_path.exists() {
+                custom_page_path
+            } else {
+                custom_pages_dir.join(format!("{command}.patch.md"))
+            }
+        };
+
+        println!("Editing {path:?}");
+        match std::process::Command::new(&editor)
+            .arg(path.to_str().unwrap())
+            .status()
+        {
+            Ok(status) => {
+                if !status.success() {
+                    print_error(
+                        enable_styles,
+                        &anyhow!("{editor} exit with code {:?}", status.code()),
+                    );
+                }
+            }
+            Err(e) => {
+                print_error(enable_styles, &e.into());
+            }
+        }
+        return;
+    }
+
     // Show various paths
     if args.show_paths {
         show_paths(&config);
