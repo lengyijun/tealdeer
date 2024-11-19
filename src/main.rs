@@ -306,6 +306,24 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
 
+    if args.edit {
+        let custom_pages_dir = custom_pages_dir
+            .context("To edit custom pages/patches, please specify a custom pages directory.")?;
+
+        let file_name = {
+            let custom_page_path = custom_pages_dir.join(format!("{command}.page.md"));
+            if custom_page_path.exists() {
+                format!("{command}.page.md")
+            } else {
+                format!("{command}.patch.md")
+            }
+        };
+
+        spawn_editor(custom_pages_dir, &file_name)?;
+
+        return Ok(ExitCode::SUCCESS);
+    }
+
     // Show various paths
     if args.show_paths {
         show_paths(&config);
