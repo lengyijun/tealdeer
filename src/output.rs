@@ -16,6 +16,7 @@ use crate::{
     config::{Config, StyleConfig},
     formatter::{highlight_lines, PageSnippet},
     line_iterator::LineIterator,
+    theme,
 };
 
 /// Set up display pager
@@ -102,7 +103,7 @@ fn print_page_mdcat(
         terminal_capabilities: terminal.capabilities(),
         terminal_size,
         syntax_set: &SyntaxSet::load_defaults_newlines(),
-        theme: Theme::default(),
+        theme: theme::page_theme(),
     };
     let resource_handler = create_resource_handler(mdcat::args::ResourceAccess::LocalOnly).unwrap();
     let mut output = Output::new(false).unwrap();
@@ -114,6 +115,12 @@ fn print_page_mdcat(
     )?;
 
     if let Some(patch_path) = &lookup_result.patch_path {
+        let settings = pulldown_cmark_mdcat::Settings {
+            terminal_capabilities: terminal.capabilities(),
+            terminal_size,
+            syntax_set: &SyntaxSet::load_defaults_newlines(),
+            theme: Theme::default(),
+        };
         println!();
         mdcat::process_file(
             patch_path.to_str().unwrap(),

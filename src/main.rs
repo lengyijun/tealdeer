@@ -48,6 +48,7 @@ pub mod extensions;
 mod formatter;
 mod line_iterator;
 mod output;
+mod theme;
 mod types;
 mod utils;
 
