@@ -320,21 +320,6 @@ impl Cache {
                 .map(str::to_string)
         };
 
-        let to_stem_custom = |entry: DirEntry| -> Option<String> {
-            entry
-                .path()
-                .file_name()
-                .and_then(OsStr::to_str)
-                .and_then(|s| {
-                    if s.ends_with(".page.md") {
-                        s.strip_suffix(".page.md")
-                    } else {
-                        s.strip_suffix(".patch.md")
-                    }
-                })
-                .map(str::to_string)
-        };
-
         // Recursively walk through platform specific directory
         let mut pages = WalkDir::new(platforms_dir)
             .min_depth(1) // Skip root directory
@@ -352,26 +337,7 @@ impl Cache {
             .collect::<Vec<String>>();
 
         if let Some(custom_pages_dir) = custom_pages_dir {
-            let is_page = |entry: &DirEntry| -> bool {
-                entry.file_type().is_file()
-                    && entry
-                        .path()
-                        .file_name()
-                        .and_then(OsStr::to_str)
-                        .is_some_and(|file_name| {
-                            file_name.ends_with(".page.md") || file_name.ends_with(".patch.md")
-                        })
-            };
-
-            let custom_pages = WalkDir::new(custom_pages_dir)
-                .min_depth(1)
-                .max_depth(1)
-                .into_iter()
-                .filter_entry(is_page)
-                .filter_map(Result::ok)
-                .filter_map(to_stem_custom);
-
-            pages.extend(custom_pages);
+            pages.extend(crate::custom::custom_pages(custom_pages_dir));
         }
 
         pages.sort();

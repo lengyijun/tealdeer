@@ -44,6 +44,7 @@ use log::debug;
 mod cache;
 mod cli;
 mod config;
+mod custom;
 pub mod extensions;
 mod formatter;
 mod line_iterator;
