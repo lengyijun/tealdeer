@@ -57,11 +57,13 @@ use crate::{
     cache::{Cache, CacheFreshness, PageLookupResult, TLDR_PAGES_DIR},
     cli::Cli,
     config::{get_config_dir, make_default_config, Config, PathWithSource},
+    custom::custom_pages,
     extensions::Dedup,
     output::print_page,
     types::{ColorOptions, PlatformType},
     utils::{print_error, print_warning},
 };
+use yansi::Paint;
 
 const NAME: &str = "tealdeer";
 const APP_INFO: AppInfo = AppInfo {
@@ -429,14 +431,23 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
 
         print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
 
+        let customs: Vec<_> = match custom_pages_dir {
+            Some(custom_pages_dir) => custom_pages(custom_pages_dir)
+                .filter(|page| page.starts_with(&format!("{command}-")))
+                .collect(),
+            None => Default::default(),
+        };
         let v = cache
             .list_pages(custom_pages_dir, &platforms)
             .into_iter()
-            .filter(|page| page.starts_with(&format!("{command}-")))
+            .filter(|page| page.starts_with(&format!("{command}-")) && !customs.contains(page))
             .collect::<Vec<_>>()
             .join("\n");
-        if !v.is_empty() {
+        if !customs.is_empty() || !v.is_empty() {
             println!("\nsee also");
+            for x in customs {
+                println!("{}", x.yellow());
+            }
             println!("{v}");
         }
     }
