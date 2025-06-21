@@ -44,6 +44,11 @@ pub(crate) struct Cli {
     #[arg(short = 'e', requires = "command", conflicts_with_all(["edit_page", "edit_patch"]))]
     pub edit: bool,
 
+    /// Only display custom page/patch
+    /// Don't display community page
+    #[arg(long, requires = "command", conflicts_with_all(["edit_page", "edit_patch", "edit"]))]
+    pub patchonly: bool,
+
     /// Render a specific markdown file
     #[arg(
         short = 'f',

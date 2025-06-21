@@ -344,6 +344,25 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
 
+    if args.patchonly {
+        let custom_pages_dir = custom_pages_dir
+            .context("To view custom pages, please specify a custom pages directory.")?;
+
+        let custom_page_path = custom_pages_dir.join(format!("{command}.page.md"));
+        if custom_page_path.exists() {
+            let lookup_result = PageLookupResult::with_page(custom_page_path);
+            print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
+        }
+
+        let custom_page_path = custom_pages_dir.join(format!("{command}.patch.md"));
+        if custom_page_path.exists() {
+            let lookup_result = PageLookupResult::with_page(custom_page_path);
+            print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
+        }
+
+        return Ok(ExitCode::SUCCESS);
+    }
+
     // Show various paths
     if args.show_paths {
         show_paths(&config);
