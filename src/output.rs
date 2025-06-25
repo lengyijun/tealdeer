@@ -44,22 +44,22 @@ pub fn print_page(
     use_pager: bool,
     config: &Config,
 ) -> Result<()> {
-    // Create reader from file(s)
-    let reader = lookup_result.reader()?;
-
     // Lock stdout only once, this improves performance considerably
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
     if enable_markdown {
-        // Print the raw markdown of the file.
-        for line in reader.lines() {
-            let line = line.context("Error while reading from a page")?;
-            writeln!(handle, "{line}").context("Could not write to stdout")?;
-        }
+        // Create reader from file(s)
+        if let Ok(reader) = lookup_result.reader() {
+            // Print the raw markdown of the file.
+            for line in reader.lines() {
+                let line = line.context("Error while reading from a page")?;
+                writeln!(handle, "{line}").context("Could not write to stdout")?;
+            }
 
-        // We're done outputting data, flush stdout now!
-        handle.flush().context("Could not flush stdout")?;
+            // We're done outputting data, flush stdout now!
+            handle.flush().context("Could not flush stdout")?;
+        }
     } else {
         print_page_mdcat(lookup_result, enable_styles, use_pager, config)?;
     }
@@ -73,6 +73,7 @@ pub fn print_page(
             logseq_page.display()
         )
         .context("Could not write to stdout")?;
+        handle.flush().context("Could not flush stdout")?;
     }
     Ok(())
 
@@ -120,12 +121,15 @@ fn print_page_mdcat(
     };
     let resource_handler = create_resource_handler(mdcat::args::ResourceAccess::LocalOnly).unwrap();
     let mut output = Output::new(false).unwrap();
-    mdcat::process_file(
-        lookup_result.page_path.to_str().unwrap(),
-        &settings,
-        &resource_handler,
-        &mut output,
-    )?;
+
+    if let Some(page_path) = &lookup_result.page_path {
+        mdcat::process_file(
+            page_path.to_str().unwrap(),
+            &settings,
+            &resource_handler,
+            &mut output,
+        )?;
+    }
 
     if let Some(patch_path) = &lookup_result.patch_path {
         let settings = pulldown_cmark_mdcat::Settings {

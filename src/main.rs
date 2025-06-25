@@ -424,7 +424,7 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
             .map_or_else(get_languages_from_env, |lang| vec![Language(lang)]);
 
         // Search for command in cache
-        let Some(lookup_result) = cache.find_page(
+        let lookup_result = cache.find_page(
             &command,
             &languages,
             config
@@ -433,7 +433,9 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
                 .as_ref()
                 .map(PathWithSource::path),
             &platforms,
-        ) else {
+        );
+
+        if lookup_result.is_none() {
             if !args.quiet {
                 print_warning(
                     enable_styles,
@@ -447,7 +449,7 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
             }
 
             return Ok(ExitCode::FAILURE);
-        };
+        }
 
         print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
 

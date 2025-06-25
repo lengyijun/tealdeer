@@ -40,7 +40,7 @@ pub struct Cache {
 
 #[derive(Debug)]
 pub struct PageLookupResult {
-    pub page_path: PathBuf,
+    pub page_path: Option<PathBuf>,
     pub patch_path: Option<PathBuf>,
     pub logseq_page: Option<PathBuf>,
 }
@@ -48,7 +48,7 @@ pub struct PageLookupResult {
 impl PageLookupResult {
     pub fn with_page(page_path: PathBuf) -> Self {
         Self {
-            page_path,
+            page_path: Some(page_path),
             patch_path: None,
             logseq_page: None,
         }
@@ -71,8 +71,13 @@ impl PageLookupResult {
     /// cannot be opened.
     pub fn reader(&self) -> Result<BufReader<Box<dyn Read>>> {
         // Open page file
-        let page_file = File::open(&self.page_path)
-            .with_context(|| format!("Could not open page file at {}", self.page_path.display()))?;
+        let page_file = match &self.page_path {
+            Some(path) => Some(
+                File::open(path)
+                    .with_context(|| format!("Could not open page file at {}", path.display()))?,
+            ),
+            None => None,
+        };
 
         // Open patch file
         let patch_file_opt = match &self.patch_path {
@@ -89,11 +94,18 @@ impl PageLookupResult {
         // the page and patch files and that will read them sequentially,
         // because it avoids the boxing below. However, the performance impact
         // would first need to be shown to be significant using a benchmark.
-        Ok(BufReader::new(if let Some(patch_file) = patch_file_opt {
-            Box::new(page_file.chain(&b"\n"[..]).chain(patch_file)) as Box<dyn Read>
-        } else {
-            Box::new(page_file) as Box<dyn Read>
-        }))
+        match (page_file, patch_file_opt) {
+            (Some(page_file), Some(patch_file)) => Ok(BufReader::new(Box::new(
+                page_file.chain(&b"\n"[..]).chain(patch_file),
+            ))),
+            (Some(page_file), None) => Ok(BufReader::new(Box::new(page_file))),
+            (None, Some(patch_file)) => Ok(BufReader::new(Box::new(patch_file))),
+            (None, None) => Err(anyhow::anyhow!("No page or patch file provided")),
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.page_path.is_none() && self.patch_path.is_none() && self.logseq_page.is_none()
     }
 }
 
@@ -250,8 +262,12 @@ impl Cache {
         languages: &[Language<'_>],
         custom_pages_dir: Option<&Path>,
         platforms: &[PlatformType],
-    ) -> Option<PageLookupResult> {
-        let logseq_page = crate::logseq::find_logseq_page(name);
+    ) -> PageLookupResult {
+        let mut result = PageLookupResult {
+            page_path: None,
+            patch_path: None,
+            logseq_page: crate::logseq::find_logseq_page(name),
+        };
 
         let page_filename = format!("{name}.md");
         let patch_filename = format!("{name}.patch.md");
@@ -268,13 +284,12 @@ impl Cache {
 
             let custom_page = config_dir.join(custom_filename);
             if custom_page.exists() && custom_page.is_file() {
-                return Some(
-                    PageLookupResult::with_page(custom_page).with_optional_logseq(logseq_page),
-                );
+                result.page_path = Some(custom_page);
+                return result;
             }
         }
 
-        let patch_path = Self::find_patch(&patch_filename, custom_pages_dir);
+        result.patch_path = Self::find_patch(&patch_filename, custom_pages_dir);
 
         // Try to find a platform specific path next, in the order supplied by the user, and append custom patch to it.
         for &platform in platforms {
@@ -282,23 +297,19 @@ impl Cache {
             if let Some(page) =
                 Self::find_page_for_platform(&page_filename, &pages_dir, platform_dir, &lang_dirs)
             {
-                return Some(
-                    PageLookupResult::with_page(page)
-                        .with_optional_patch(patch_path)
-                        .with_optional_logseq(logseq_page),
-                );
+                result.page_path = Some(page);
+                return result;
             }
         }
 
         if let Some(config_dir) = custom_pages_dir {
             let custom_patch = config_dir.join(&patch_filename);
             if custom_patch.exists() && custom_patch.is_file() {
-                return Some(
-                    PageLookupResult::with_page(custom_patch).with_optional_logseq(logseq_page),
-                );
+                result.patch_path = Some(custom_patch);
+                return result;
             }
         }
-        None
+        result
     }
 
     /// Return the available pages.
