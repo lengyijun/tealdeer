@@ -42,6 +42,7 @@ pub struct Cache {
 pub struct PageLookupResult {
     pub page_path: PathBuf,
     pub patch_path: Option<PathBuf>,
+    pub logseq_page: Option<PathBuf>,
 }
 
 impl PageLookupResult {
@@ -49,11 +50,17 @@ impl PageLookupResult {
         Self {
             page_path,
             patch_path: None,
+            logseq_page: None,
         }
     }
 
     pub fn with_optional_patch(mut self, patch_path: Option<PathBuf>) -> Self {
         self.patch_path = patch_path;
+        self
+    }
+
+    pub fn with_optional_logseq(mut self, logseq_path: Option<PathBuf>) -> Self {
+        self.logseq_page = logseq_path;
         self
     }
 
@@ -244,6 +251,8 @@ impl Cache {
         custom_pages_dir: Option<&Path>,
         platforms: &[PlatformType],
     ) -> Option<PageLookupResult> {
+        let logseq_page = crate::logseq::find_logseq_page(name);
+
         let page_filename = format!("{name}.md");
         let patch_filename = format!("{name}.patch.md");
         let custom_filename = format!("{name}.page.md");
@@ -259,7 +268,9 @@ impl Cache {
 
             let custom_page = config_dir.join(custom_filename);
             if custom_page.exists() && custom_page.is_file() {
-                return Some(PageLookupResult::with_page(custom_page));
+                return Some(
+                    PageLookupResult::with_page(custom_page).with_optional_logseq(logseq_page),
+                );
             }
         }
 
@@ -271,14 +282,20 @@ impl Cache {
             if let Some(page) =
                 Self::find_page_for_platform(&page_filename, &pages_dir, platform_dir, &lang_dirs)
             {
-                return Some(PageLookupResult::with_page(page).with_optional_patch(patch_path));
+                return Some(
+                    PageLookupResult::with_page(page)
+                        .with_optional_patch(patch_path)
+                        .with_optional_logseq(logseq_page),
+                );
             }
         }
 
         if let Some(config_dir) = custom_pages_dir {
             let custom_patch = config_dir.join(&patch_filename);
             if custom_patch.exists() && custom_patch.is_file() {
-                return Some(PageLookupResult::with_page(custom_patch));
+                return Some(
+                    PageLookupResult::with_page(custom_patch).with_optional_logseq(logseq_page),
+                );
             }
         }
         None

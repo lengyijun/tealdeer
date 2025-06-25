@@ -11,6 +11,7 @@ use pulldown_cmark_mdcat::Theme;
 use syntect::parsing::SyntaxSet;
 use yansi::Paint;
 
+use crate::logseq;
 use crate::{
     cache::PageLookupResult,
     config::{Config, StyleConfig},
@@ -58,10 +59,22 @@ pub fn print_page(
         }
 
         // We're done outputting data, flush stdout now!
-        handle.flush().context("Could not flush stdout")
+        handle.flush().context("Could not flush stdout")?;
     } else {
-        print_page_mdcat(lookup_result, enable_styles, use_pager, config)
+        print_page_mdcat(lookup_result, enable_styles, use_pager, config)?;
     }
+
+    if let Some(logseq_page) = &lookup_result.logseq_page {
+        // Print the logseq page path
+        writeln!(
+            handle,
+            "\n• {}\n\n    {}",
+            "Logseq page".paint(yansi::Color::Black.on_green()),
+            logseq_page.display()
+        )
+        .context("Could not write to stdout")?;
+    }
+    Ok(())
 
     /*
     // Configure pager if applicable
