@@ -357,7 +357,11 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
 
         let custom_page_path = custom_pages_dir.join(format!("{command}.patch.md"));
         if custom_page_path.exists() {
-            let lookup_result = PageLookupResult::with_page(custom_page_path);
+            let lookup_result = PageLookupResult {
+                page_path: None,
+                patch_path: Some(custom_page_path),
+                logseq_page: None,
+            };
             print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
         }
 

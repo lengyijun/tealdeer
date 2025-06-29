@@ -59,11 +59,6 @@ impl PageLookupResult {
         self
     }
 
-    pub fn with_optional_logseq(mut self, logseq_path: Option<PathBuf>) -> Self {
-        self.logseq_page = logseq_path;
-        self
-    }
-
     /// Create a buffered reader that sequentially reads from the page and the
     /// patch, as if they were concatenated.
     ///
