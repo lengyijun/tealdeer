@@ -419,63 +419,65 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
 
+    if command.is_empty() {
+        return Ok(ExitCode::SUCCESS);
+    }
+
     // Show command from cache
-    if !command.is_empty() {
-        // Collect languages
-        let languages = args
-            .language
-            .as_deref()
-            .map_or_else(get_languages_from_env, |lang| vec![Language(lang)]);
+    // Collect languages
+    let languages = args
+        .language
+        .as_deref()
+        .map_or_else(get_languages_from_env, |lang| vec![Language(lang)]);
 
-        // Search for command in cache
-        let lookup_result = cache.find_page(
-            &command,
-            &languages,
-            config
-                .directories
-                .custom_pages_dir
-                .as_ref()
-                .map(PathWithSource::path),
-            &platforms,
-        );
+    // Search for command in cache
+    let lookup_result = cache.find_page(
+        &command,
+        &languages,
+        config
+            .directories
+            .custom_pages_dir
+            .as_ref()
+            .map(PathWithSource::path),
+        &platforms,
+    );
 
-        if lookup_result.is_none() {
-            if !args.quiet {
-                print_warning(
-                    enable_styles,
-                    &format!(
-                        "Page `{}` not found in cache.\n\
+    if lookup_result.is_none() {
+        if !args.quiet {
+            print_warning(
+                enable_styles,
+                &format!(
+                    "Page `{}` not found in cache.\n\
                          Try updating with `tldr --update`, or submit a pull request to:\n\
                          https://github.com/tldr-pages/tldr",
-                        &command
-                    ),
-                );
-            }
-
-            return Ok(ExitCode::FAILURE);
+                    &command
+                ),
+            );
         }
 
-        print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
+        return Ok(ExitCode::FAILURE);
+    }
 
-        let customs: Vec<_> = match custom_pages_dir {
-            Some(custom_pages_dir) => custom_pages(custom_pages_dir)
-                .filter(|page| page.starts_with(&format!("{command}-")))
-                .collect(),
-            None => Default::default(),
-        };
-        let v = cache
-            .list_pages(custom_pages_dir, &platforms)
-            .into_iter()
-            .filter(|page| page.starts_with(&format!("{command}-")) && !customs.contains(page))
-            .collect::<Vec<_>>()
-            .join("\n");
-        if !customs.is_empty() || !v.is_empty() {
-            println!("\nsee also");
-            for x in customs {
-                println!("{}", x.yellow());
-            }
-            println!("{v}");
+    print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
+
+    let customs: Vec<_> = match custom_pages_dir {
+        Some(custom_pages_dir) => custom_pages(custom_pages_dir)
+            .filter(|page| page.starts_with(&format!("{command}-")))
+            .collect(),
+        None => Default::default(),
+    };
+    let v = cache
+        .list_pages(custom_pages_dir, &platforms)
+        .into_iter()
+        .filter(|page| page.starts_with(&format!("{command}-")) && !customs.contains(page))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if !customs.is_empty() || !v.is_empty() {
+        println!("\nsee also");
+        for x in customs {
+            println!("{}", x.yellow());
         }
+        println!("{v}");
     }
 
     Ok(ExitCode::SUCCESS)
