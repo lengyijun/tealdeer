@@ -29,6 +29,7 @@ use std::{
     env,
     fs::create_dir_all,
     io::{self, IsTerminal},
+    ops::Deref,
     path::Path,
     process::{Command, ExitCode},
     sync::LazyLock,
@@ -311,7 +312,16 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
     // Note: According to the TLDR client spec, page names must be transparently
     // lowercased before lookup:
     // https://github.com/tldr-pages/tldr/blob/main/CLIENT-SPECIFICATION.md#page-names
-    let command = args.command.join("-").to_lowercase();
+    let (command, star) = match args.command.last().map(Deref::deref) {
+        Some("*") => {
+            let s = args.command[..args.command.len() - 1]
+                .join("-")
+                .to_lowercase();
+            (s, true)
+        }
+        Some(_) => (args.command.join("-").to_lowercase(), false),
+        None => (String::new(), false),
+    };
 
     if args.edit_patch || args.edit_page {
         let file_name = if args.edit_patch {
@@ -400,7 +410,7 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
 
-    if args.patchonly {
+    if args.patchonly && !star {
         let custom_pages_dir = custom_pages_dir
             .context("To view custom pages, please specify a custom pages directory.")?;
 
@@ -420,6 +430,31 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
             print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
         }
 
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    let customs: Vec<_> = match custom_pages_dir {
+        Some(custom_pages_dir) => custom_pages(custom_pages_dir)
+            .filter(|page| page.starts_with(&format!("{command}-")))
+            .collect(),
+        None => Default::default(),
+    };
+
+    if args.patchonly && star {
+        let custom_pages_dir = custom_pages_dir
+            .context("To view custom pages, please specify a custom pages directory.")?;
+
+        for x in customs {
+            let custom_page_path = custom_pages_dir.join(format!("{x}.patch.md"));
+            if custom_page_path.exists() {
+                let lookup_result = PageLookupResult {
+                    page_path: None,
+                    patch_path: Some(custom_page_path),
+                    logseq_page: None,
+                };
+                print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
+            }
+        }
         return Ok(ExitCode::SUCCESS);
     }
 
@@ -460,12 +495,6 @@ fn try_main(args: Cli, enable_styles: bool) -> Result<ExitCode> {
 
     print_page(&lookup_result, args.raw, enable_styles, args.pager, &config)?;
 
-    let customs: Vec<_> = match custom_pages_dir {
-        Some(custom_pages_dir) => custom_pages(custom_pages_dir)
-            .filter(|page| page.starts_with(&format!("{command}-")))
-            .collect(),
-        None => Default::default(),
-    };
     let v = cache
         .list_pages(custom_pages_dir, &platforms)
         .into_iter()
